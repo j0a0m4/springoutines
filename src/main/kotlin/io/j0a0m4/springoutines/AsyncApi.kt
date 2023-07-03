@@ -15,25 +15,20 @@ class AsyncApi(
 	@PostMapping
 	@ResponseStatus(HttpStatus.ACCEPTED)
 	suspend fun execute() = UUID.randomUUID()
-		.also { id ->
-			CoroutineScope(asyncDispatcher)
-				.launch {
-					async {
-						delayedProcess()
-					}.let {
-						tracker.track(id, it)
-					}
-				}
+		.also {
+			CoroutineScope(asyncDispatcher).launch {
+				val deferred = async { delayedProcess() }
+				tracker.track(it, deferred)
+			}
 		}.let {
 			TaskStatus(it, CoroutineStatus.Processing)
 		}
 
-
 	@GetMapping
 	@ResponseStatus(HttpStatus.OK)
 	suspend fun get() = tracker.retrieve()
-		.map { (key, result) ->
-			TaskStatus.from(key, result)
+		.map { (id, deferred) ->
+			TaskStatus.from(id, deferred)
 		}
 
 	@GetMapping("/{id}")
